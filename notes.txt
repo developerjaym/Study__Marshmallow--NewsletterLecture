@@ -1,0 +1,8 @@
+# changing keys
+post_type = ma.auto_field(data_key='type')
+
+# nesting
+author = ma.Nested(chatter_schema)
+
+# plucking
+tags = ma.Pluck(TagSchema, 'content', many=True)

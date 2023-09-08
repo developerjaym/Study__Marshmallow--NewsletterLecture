@@ -4,8 +4,9 @@ from flask import Flask, request, make_response
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_restful import Api, Resource
+from flask_cors import CORS
 
-from models import db, Newsletter
+from models import db, Newsletter, Writer, Tag
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///newsletters.db'
@@ -14,39 +15,57 @@ app.json.compact = False
 
 migrate = Migrate(app, db)
 db.init_app(app)
-
+CORS(app)
 api = Api(app)
 
-class Index(Resource):
+ma = Marshmallow(app)
 
-    def get(self):
-        
-        response_dict = {
-            "index": "Welcome to the Newsletter RESTful API",
-        }
-        
-        response = make_response(
-            response_dict,
-            200,
-        )
+class WriterSchema(ma.SQLAlchemySchema):
+    class Meta:
+        model = Writer
+    id = ma.auto_field()
+    name = ma.auto_field()
 
-        return response
+singular_writer_schema = WriterSchema()
+plural_writer_schema = WriterSchema(many=True)
 
-api.add_resource(Index, '/')
+class TagSchema(ma.SQLAlchemySchema):
+    class Meta:
+        model = Tag
+    id = ma.auto_field()
+    content = ma.auto_field()
+
+singular_tag_schema = TagSchema()
+plural_tag_schema = TagSchema(many=True)
+
+class NewsletterSchema(ma.SQLAlchemySchema):
+
+    class Meta:
+        model = Newsletter
+
+    id = ma.auto_field()
+    title = ma.auto_field()
+    published_at = ma.auto_field(data_key="publishedAt")
+    writer = ma.Nested(singular_writer_schema)
+    tags = ma.Pluck(TagSchema, 'content', many=True)
+
+
+singular_newsletter_schema = NewsletterSchema()
+plural_newsletter_schema = NewsletterSchema(many=True)
+
 
 class Newsletters(Resource):
-
-    def get(self):
-        
-        response_dict_list = [n.to_dict() for n in Newsletter.query.all()]
-
+    # new way (with Marshmallow!)
+    def get(self):    
+        newsletters = Newsletter.query.all()
         response = make_response(
-            response_dict_list,
+            plural_newsletter_schema.dump(newsletters),
             200,
         )
-
         return response
+    
 
+    # new way! (without Marshmallow!)
     def post(self):
         
         new_record = Newsletter(
@@ -57,10 +76,8 @@ class Newsletters(Resource):
         db.session.add(new_record)
         db.session.commit()
 
-        response_dict = new_record.to_dict()
-
         response = make_response(
-            response_dict,
+            singular_newsletter_schema.dump(new_record),
             201,
         )
 
@@ -72,10 +89,10 @@ class NewsletterByID(Resource):
 
     def get(self, id):
 
-        response_dict = Newsletter.query.filter_by(id=id).first().to_dict()
+        response_json = singular_newsletter_schema.dump(Newsletter.query.filter_by(id=id).first())
 
         response = make_response(
-            response_dict,
+            response_json,
             200,
         )
 

@@ -1,0 +1,10 @@
+{
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "name": "newsletters",
+            "database": "${workspaceFolder:python-p4-hateoas-and-marshmallow}/server/instance/newsletters.db"
+        }
+    ]
+}
